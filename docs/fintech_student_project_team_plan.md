@@ -111,7 +111,6 @@ Alternatives:
 
 - Java Spring Boot
 - Node.js with NestJS or Express
-- Python FastAPI
 
 ### Frontend Options
 
