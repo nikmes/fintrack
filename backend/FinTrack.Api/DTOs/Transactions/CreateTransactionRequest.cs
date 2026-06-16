@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace FinTrack.Api.DTOs.Transactions;
 
 public class CreateTransactionRequest
@@ -9,5 +11,19 @@ public class CreateTransactionRequest
     public string? Merchant { get; set; }
     public string? Category { get; set; }
     public string? Description { get; set; }
+
+    [Required]
+    [NoFutureDate]
     public DateOnly TransactionDate { get; set; }
+}
+
+public class NoFutureDateAttribute : ValidationAttribute
+{
+    protected override ValidationResult? IsValid(object? value, ValidationContext context)
+    {
+        if (value is DateOnly date && date > DateOnly.FromDateTime(DateTime.UtcNow))
+            return new ValidationResult("Transaction date cannot be in the future.");
+
+        return ValidationResult.Success;
+    }
 }
