@@ -57,3 +57,6 @@ export function getBudgets(userId) {
 export function getSpendingByCategory(userId) {
   return request(`/analytics/spending-by-category?userId=${userId}`);
 }
+export function getUserById(userId) {
+  return request(`/users/${userId}`);
+}
