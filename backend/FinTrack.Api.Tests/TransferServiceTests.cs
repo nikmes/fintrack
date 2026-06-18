@@ -141,6 +141,22 @@ public class TransferServiceTests
     }
 
     [Fact]
+    public async Task Transfer_AmountWithMoreThanTwoDecimalPlaces_Throws()
+    {
+        using var db = _fixture.CreateDbContext();
+        var (wallets, transfers) = BuildServices(db);
+
+        var sender = await TestData.CreateUserAsync(db);
+        var receiver = await TestData.CreateUserAsync(db);
+        var senderWallet = await TestData.CreateWalletAsync(db, sender.Id, "EUR");
+        var receiverWallet = await TestData.CreateWalletAsync(db, receiver.Id, "EUR");
+        await wallets.DepositAsync(sender.Id, senderWallet.Id, 100m);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => transfers.TransferAsync(sender.Id, senderWallet.Id, receiverWallet.Id, 10.999m, "EUR", null));
+    }
+
+    [Fact]
     public async Task ConcurrentTransfers_CannotOverdraftSourceWallet()
     {
         using var setupDb = _fixture.CreateDbContext();

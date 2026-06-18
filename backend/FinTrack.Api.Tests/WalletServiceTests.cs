@@ -94,6 +94,20 @@ public class WalletServiceTests
     }
 
     [Fact]
+    public async Task Deposit_AmountWithMoreThanTwoDecimalPlaces_Throws()
+    {
+        using var db = _fixture.CreateDbContext();
+        var ledgerService = new LedgerService(db);
+        var walletService = new WalletService(db, ledgerService);
+
+        var user = await TestData.CreateUserAsync(db);
+        var wallet = await TestData.CreateWalletAsync(db, user.Id, "EUR");
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => walletService.DepositAsync(user.Id, wallet.Id, 10.999m));
+    }
+
+    [Fact]
     public async Task GetWalletById_ForAnotherUsersWallet_ReturnsNull()
     {
         using var db = _fixture.CreateDbContext();

@@ -80,7 +80,7 @@ public class WalletService : IWalletService
             throw new WalletOwnershipException(walletId);
 
         var currency = walletPreview.Currency;
-        var amountMinor = ToMinorUnits(amount);
+        var amountMinor = MoneyMath.ToMinorUnits(amount);
         var systemWalletId = await GetOrCreateSystemWalletIdAsync(currency, cancellationToken);
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
@@ -190,5 +190,4 @@ public class WalletService : IWalletService
         return systemWallet.Id;
     }
 
-    private static long ToMinorUnits(decimal amount) => (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero);
 }

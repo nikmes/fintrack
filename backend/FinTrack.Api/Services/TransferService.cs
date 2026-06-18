@@ -33,7 +33,7 @@ public class TransferService : ITransferService
             throw new ArgumentException("Amount must be greater than zero.", nameof(amount));
 
         currency = currency.ToUpperInvariant();
-        var amountMinor = ToMinorUnits(amount);
+        var amountMinor = MoneyMath.ToMinorUnits(amount);
 
         // Fail-fast checks against untracked reads, before paying the cost of a transaction.
         // These are advisory only — the authoritative checks happen below against the locked rows.
@@ -102,5 +102,4 @@ public class TransferService : ITransferService
             throw new CurrencyMismatchException();
     }
 
-    private static long ToMinorUnits(decimal amount) => (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero);
 }
