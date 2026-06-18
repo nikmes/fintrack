@@ -7,11 +7,12 @@ function CreateAccountForm({ userId, onAccountCreated }) {
   const [accountType, setAccountType] = useState("Wallet");
   const [currency, setCurrency] = useState("EUR");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-
     setError("");
+    setIsSubmitting(true);
 
     try {
       const account = await createAccount({
@@ -30,48 +31,67 @@ function CreateAccountForm({ userId, onAccountCreated }) {
       setCurrency("EUR");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="card">
-      <h2>Create Account</h2>
+    <div className="card form-card">
+      <div className="form-card-header">
+        <h2>Create Account</h2>
+        <p>Add a wallet, bank account, savings account, or card.</p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Account name e.g. Main Wallet"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
+      <form onSubmit={handleSubmit} className="form-grid">
+        <div className="form-field">
+          <label>Account name</label>
+          <input
+            type="text"
+            placeholder="Example: Main Wallet"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Institution e.g. FinTrack"
-          value={institution}
-          onChange={(e) => setInstitution(e.target.value)}
-        />
+        <div className="form-field">
+          <label>Institution</label>
+          <input
+            type="text"
+            placeholder="Example: Revolut, Hellenic Bank"
+            value={institution}
+            onChange={(e) => setInstitution(e.target.value)}
+          />
+        </div>
 
-        <select
-          value={accountType}
-          onChange={(e) => setAccountType(e.target.value)}
-        >
-          <option value="Wallet">Wallet</option>
-          <option value="Bank">Bank</option>
-          <option value="Savings">Savings</option>
-          <option value="Card">Card</option>
-        </select>
+        <div className="form-field">
+          <label>Account type</label>
+          <select
+            value={accountType}
+            onChange={(e) => setAccountType(e.target.value)}
+          >
+            <option value="Wallet">Wallet</option>
+            <option value="Bank">Bank</option>
+            <option value="Savings">Savings</option>
+            <option value="Card">Card</option>
+          </select>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Currency"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          required
-        />
+        <div className="form-field">
+          <label>Currency</label>
+          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
 
-        <button type="submit">Create Account</button>
+        <div className="form-actions full-width">
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create Account"}
+          </button>
+        </div>
       </form>
 
       {error && <p className="error">{error}</p>}

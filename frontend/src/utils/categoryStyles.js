@@ -1,3 +1,16 @@
+export const categoryOptions = [
+  "Food",
+  "Drinks",
+  "Transport",
+  "Shopping",
+  "Gym",
+  "Bills",
+  "Entertainment",
+  "Health",
+  "Education",
+  "Other",
+];
+
 const categoryStyles = {
   food: {
     icon: "🍔",
@@ -54,6 +67,11 @@ const categoryStyles = {
     color: "#4f46e5",
     background: "#e0e7ff",
   },
+  other: {
+    icon: "📦",
+    color: "#64748b",
+    background: "#f1f5f9",
+  },
   uncategorized: {
     icon: "📦",
     color: "#64748b",
@@ -64,11 +82,5 @@ const categoryStyles = {
 export function getCategoryStyle(category) {
   const key = (category || "uncategorized").toLowerCase().trim();
 
-  return (
-    categoryStyles[key] || {
-      icon: "📦",
-      color: "#64748b",
-      background: "#f1f5f9",
-    }
-  );
+  return categoryStyles[key] || categoryStyles.other;
 }

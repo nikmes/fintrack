@@ -1,47 +1,51 @@
 import { useState } from "react";
-import { loginUser } from "../services/api";
+import { getUserById } from "../services/api";
 
 function SignInForm({ onUserSignedIn }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
     try {
-      const user = await loginUser(email, password);
+      const user = await getUserById(userId);
       onUserSignedIn(user);
-      setEmail("");
-      setPassword("");
+      setUserId("");
     } catch (err) {
-      setError("Invalid email or password.");
+      setError("User not found. Please check the User ID.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="card">
-      <h2>Sign In</h2>
+    <div className="card form-card">
+      <div className="form-card-header">
+        <h2>Sign In</h2>
+        <p>Enter your temporary user ID to load your dashboard.</p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+      <form onSubmit={handleSubmit} className="form-grid">
+        <div className="form-field full-width">
+          <label>User ID</label>
+          <input
+            type="text"
+            placeholder="Paste your user ID here"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            required
+          />
+        </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
-        <button type="submit">Sign In</button>
+        <div className="form-actions full-width">
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Sign In"}
+          </button>
+        </div>
       </form>
 
       {error && <p className="error">{error}</p>}

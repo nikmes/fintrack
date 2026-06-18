@@ -59,15 +59,12 @@ function AnalyticsPanel({ userId, transactions }) {
   return (
     <div className="card analytics-card">
       <div className="analytics-header">
-        <div>
-          <h2>Analytics</h2>
-          <p>Automatically updated from your transactions</p>
-        </div>
+  <p>Automatically updated from your transactions</p>
 
-        <button type="button" onClick={loadAnalytics}>
-          {isLoading ? "Loading..." : "Refresh"}
-        </button>
-      </div>
+  <button type="button" onClick={loadAnalytics}>
+    {isLoading ? "Loading..." : "Refresh"}
+  </button>
+</div>
 
       {error && <p className="error">{error}</p>}
 
