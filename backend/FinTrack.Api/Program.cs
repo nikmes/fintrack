@@ -1,11 +1,41 @@
+using System.Text;
 using FinTrack.Api.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"]!;
+var jwtIssuer = jwtSection["Issuer"]!;
+var jwtAudience = jwtSection["Audience"]!;
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<FinTrack.Api.Services.ITokenService, FinTrack.Api.Services.TokenService>();
+builder.Services.AddScoped<FinTrack.Api.Services.ILedgerService, FinTrack.Api.Services.LedgerService>();
+builder.Services.AddScoped<FinTrack.Api.Services.IWalletService, FinTrack.Api.Services.WalletService>();
+builder.Services.AddScoped<FinTrack.Api.Services.ITransferService, FinTrack.Api.Services.TransferService>();
 
 builder.Services.AddCors(options =>
 {
@@ -37,6 +67,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("FrontendCors");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
