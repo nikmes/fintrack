@@ -34,6 +34,8 @@ builder.Services
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<FinTrack.Api.Services.ITokenService, FinTrack.Api.Services.TokenService>();
 builder.Services.AddScoped<FinTrack.Api.Services.ILedgerService, FinTrack.Api.Services.LedgerService>();
+builder.Services.AddScoped<FinTrack.Api.Services.IWalletService, FinTrack.Api.Services.WalletService>();
+builder.Services.AddScoped<FinTrack.Api.Services.ITransferService, FinTrack.Api.Services.TransferService>();
 
 builder.Services.AddCors(options =>
 {
