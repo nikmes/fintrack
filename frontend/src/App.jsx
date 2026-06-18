@@ -3,21 +3,33 @@ import "./App.css";
 
 import CreateUserForm from "./components/CreateUserForm";
 import SignInForm from "./components/SignInForm";
+import CreateWalletForm from "./components/CreateWalletForm";
+import DepositWalletForm from "./components/DepositWalletForm";
+import TransferWalletForm from "./components/TransferWalletForm";
 import CreateAccountForm from "./components/CreateAccountForm";
 import CreateTransactionForm from "./components/CreateTransactionForm";
 import CreateBudgetForm from "./components/CreateBudgetForm";
 import AnalyticsPanel from "./components/AnalyticsPanel";
 import SummaryCards from "./components/SummaryCards";
 
-import { getAccounts, getTransactions, getBudgets } from "./services/api";
+import {
+  getWallets,
+  getAccounts,
+  getTransactions,
+  getBudgets,
+} from "./services/api";
+
 import { getCategoryStyle } from "./utils/categoryStyles";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem("currentUser");
-    return savedUser ? JSON.parse(savedUser) : null;
+    const savedToken = localStorage.getItem("token");
+
+    return savedUser && savedToken ? JSON.parse(savedUser) : null;
   });
 
+  const [wallets, setWallets] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
@@ -25,14 +37,18 @@ function App() {
   const [authMode, setAuthMode] = useState("register");
   const [isLoadingData, setIsLoadingData] = useState(false);
 
+  const [showWalletForm, setShowWalletForm] = useState(false);
+  const [showDepositForm, setShowDepositForm] = useState(false);
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [showTransferForm, setShowTransferForm] = useState(false);
 
   const [transactionSearch, setTransactionSearch] = useState("");
   const [transactionCategoryFilter, setTransactionCategoryFilter] =
-  useState("All");
+    useState("All");
   const [transactionSort, setTransactionSort] = useState("newest");
+
   const [activeSection, setActiveSection] = useState("user");
 
   useEffect(() => {
@@ -45,18 +61,34 @@ function App() {
       setIsLoadingData(true);
 
       try {
-        const accountsData = await getAccounts(currentUser.id);
-        const transactionsData = await getTransactions(currentUser.id);
-        const budgetsData = await getBudgets(currentUser.id);
+        const walletsData = await getWallets();
+        setWallets(walletsData);
+      } catch (err) {
+        console.error("Failed to load wallets:", err);
+      }
 
+      try {
+        const accountsData = await getAccounts(currentUser.id);
         setAccounts(accountsData);
+      } catch (err) {
+        console.error("Failed to load accounts:", err);
+      }
+
+      try {
+        const transactionsData = await getTransactions(currentUser.id);
         setTransactions(transactionsData);
+      } catch (err) {
+        console.error("Failed to load transactions:", err);
+      }
+
+      try {
+        const budgetsData = await getBudgets(currentUser.id);
         setBudgets(budgetsData);
       } catch (err) {
-        console.error("Failed to load user data:", err);
-      } finally {
-        setIsLoadingData(false);
+        console.error("Failed to load budgets:", err);
       }
+
+      setIsLoadingData(false);
     }
 
     loadUserData();
@@ -66,7 +98,7 @@ function App() {
     return new Intl.NumberFormat("en-CY", {
       style: "currency",
       currency,
-    }).format(Number(amount));
+    }).format(Number(amount || 0));
   }
 
   function formatDate(dateString) {
@@ -86,7 +118,7 @@ function App() {
       .filter(
         (transaction) =>
           (transaction.category || "Uncategorized").toLowerCase() ===
-          category.toLowerCase()
+          String(category || "").toLowerCase()
       )
       .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
   }
@@ -113,27 +145,81 @@ function App() {
 
     return "User";
   }
-function getAccountIcon(accountType) {
-  const type = (accountType || "").toLowerCase();
 
-  if (type.includes("wallet")) {
-    return "👛";
+  function getAccountIcon(accountType) {
+    const type = (accountType || "").toLowerCase();
+
+    if (type.includes("wallet")) {
+      return "👛";
+    }
+
+    if (type.includes("bank")) {
+      return "🏦";
+    }
+
+    if (type.includes("saving")) {
+      return "💰";
+    }
+
+    if (type.includes("card")) {
+      return "💳";
+    }
+
+    return "💼";
   }
 
-  if (type.includes("bank")) {
-    return "🏦";
-  }
+  function getWalletIcon(currency) {
+    const value = (currency || "").toUpperCase();
 
-  if (type.includes("saving")) {
-    return "💰";
-  }
+    if (value === "EUR") {
+      return "€";
+    }
 
-  if (type.includes("card")) {
+    if (value === "USD") {
+      return "$";
+    }
+
+    if (value === "GBP") {
+      return "£";
+    }
+
     return "💳";
   }
 
-  return "💼";
+  function getWalletBalance(wallet) {
+    return (
+      wallet.balance ??
+      wallet.availableBalance ??
+      wallet.currentBalance ??
+      wallet.amount ??
+      0
+    );
+  }
+
+  function handleWalletCreated(wallet) {
+    setWallets([wallet, ...wallets]);
+    setShowWalletForm(false);
+  }
+
+  async function handleDepositCompleted() {
+    try {
+      const walletsData = await getWallets();
+      setWallets(walletsData);
+      setShowDepositForm(false);
+    } catch (err) {
+      console.error("Failed to refresh wallets:", err);
+    }
+  }
+  async function handleTransferCompleted() {
+  try {
+    const walletsData = await getWallets();
+    setWallets(walletsData);
+    setShowTransferForm(false);
+  } catch (err) {
+    console.error("Failed to refresh wallets:", err);
+  }
 }
+
   function handleAccountCreated(account) {
     setAccounts([account, ...accounts]);
     setShowAccountForm(false);
@@ -151,12 +237,18 @@ function getAccountIcon(accountType) {
 
   function handleClearCurrentUser() {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("token");
 
     setCurrentUser(null);
+
+    setWallets([]);
     setAccounts([]);
     setTransactions([]);
     setBudgets([]);
 
+    setShowWalletForm(false);
+    setShowDepositForm(false);
+    setShowTransferForm(false);
     setShowAccountForm(false);
     setShowTransactionForm(false);
     setShowBudgetForm(false);
@@ -164,8 +256,8 @@ function getAccountIcon(accountType) {
     setTransactionSearch("");
     setTransactionCategoryFilter("All");
     setTransactionSort("newest");
-    setActiveSection("user");
 
+    setActiveSection("user");
     setAuthMode("register");
   }
 
@@ -198,116 +290,126 @@ function getAccountIcon(accountType) {
 
     return matchesSearch && matchesCategory;
   });
-const sortedFilteredTransactions = [...filteredTransactions].sort((a, b) => {
-  if (transactionSort === "newest") {
-    return new Date(b.transactionDate || 0) - new Date(a.transactionDate || 0);
-  }
 
-  if (transactionSort === "oldest") {
-    return new Date(a.transactionDate || 0) - new Date(b.transactionDate || 0);
-  }
+  const sortedFilteredTransactions = [...filteredTransactions].sort((a, b) => {
+    if (transactionSort === "newest") {
+      return new Date(b.transactionDate || 0) - new Date(a.transactionDate || 0);
+    }
 
-  if (transactionSort === "highest") {
-    return Number(b.amount) - Number(a.amount);
-  }
+    if (transactionSort === "oldest") {
+      return new Date(a.transactionDate || 0) - new Date(b.transactionDate || 0);
+    }
 
-  if (transactionSort === "lowest") {
-    return Number(a.amount) - Number(b.amount);
-  }
+    if (transactionSort === "highest") {
+      return Number(b.amount) - Number(a.amount);
+    }
 
-  return 0;
-});
+    if (transactionSort === "lowest") {
+      return Number(a.amount) - Number(b.amount);
+    }
 
-const filteredTransactionTotal = filteredTransactions.reduce(
-  (sum, transaction) => sum + Number(transaction.amount),
-  0
-);
+    return 0;
+  });
+
+  const filteredTransactionTotal = filteredTransactions.reduce(
+    (sum, transaction) => sum + Number(transaction.amount),
+    0
+  );
+
   return (
     <div className="app">
       <header className="hero">
-  <div className="hero-badge">💳 Smart finance dashboard</div>
+        <div className="hero-badge">💳 Smart finance dashboard</div>
 
-  <h1>FinTrack</h1>
+        <h1>FinTrack</h1>
 
-  <p>
-    Track accounts, budgets, transactions and spending insights in one clean
-    dashboard.
-  </p>
-</header>
+        <p>
+          Track wallets, accounts, budgets, transactions and spending insights
+          in one clean dashboard.
+        </p>
+      </header>
 
       <nav className="top-nav">
-  <a
-    href="#user"
-    className={activeSection === "user" ? "active" : ""}
-    onClick={() => setActiveSection("user")}
-  >
-    User
-  </a>
+        <a
+          href="#user"
+          className={activeSection === "user" ? "active" : ""}
+          onClick={() => setActiveSection("user")}
+        >
+          User
+        </a>
 
-  {currentUser && (
-    <>
-      <a
-        href="#accounts"
-        className={activeSection === "accounts" ? "active" : ""}
-        onClick={() => setActiveSection("accounts")}
-      >
-        Accounts
-      </a>
+        {currentUser && (
+          <>
+            <a
+              href="#wallets"
+              className={activeSection === "wallets" ? "active" : ""}
+              onClick={() => setActiveSection("wallets")}
+            >
+              Wallets
+            </a>
 
-      <a
-        href="#analytics"
-        className={activeSection === "analytics" ? "active" : ""}
-        onClick={() => setActiveSection("analytics")}
-      >
-        Analytics
-      </a>
-    </>
-  )}
+            <a
+              href="#accounts"
+              className={activeSection === "accounts" ? "active" : ""}
+              onClick={() => setActiveSection("accounts")}
+            >
+              Accounts
+            </a>
 
-  {accounts.length > 0 && (
-    <>
-      <a
-        href="#transactions"
-        className={activeSection === "transactions" ? "active" : ""}
-        onClick={() => setActiveSection("transactions")}
-      >
-        Transactions
-      </a>
+            <a
+              href="#analytics"
+              className={activeSection === "analytics" ? "active" : ""}
+              onClick={() => setActiveSection("analytics")}
+            >
+              Analytics
+            </a>
+          </>
+        )}
 
-      <a
-        href="#budgets"
-        className={activeSection === "budgets" ? "active" : ""}
-        onClick={() => setActiveSection("budgets")}
-      >
-        Budgets
-      </a>
-    </>
-  )}
-</nav>
+        {accounts.length > 0 && (
+          <>
+            <a
+              href="#transactions"
+              className={activeSection === "transactions" ? "active" : ""}
+              onClick={() => setActiveSection("transactions")}
+            >
+              Transactions
+            </a>
+
+            <a
+              href="#budgets"
+              className={activeSection === "budgets" ? "active" : ""}
+              onClick={() => setActiveSection("budgets")}
+            >
+              Budgets
+            </a>
+          </>
+        )}
+      </nav>
 
       <section id="user">
         {!currentUser && (
           <>
             <div className="auth-toggle">
-  <button
-    type="button"
-    className={authMode === "register" ? "active" : ""}
-    onClick={() => setAuthMode("register")}
-  >
-    Register
-  </button>
+              <button
+                type="button"
+                className={authMode === "register" ? "active" : ""}
+                onClick={() => setAuthMode("register")}
+              >
+                Register
+              </button>
 
-  <button
-    type="button"
-    className={authMode === "signin" ? "active" : ""}
-    onClick={() => setAuthMode("signin")}
-  >
-    Sign In
-  </button>
-</div>
+              <button
+                type="button"
+                className={authMode === "signin" ? "active" : ""}
+                onClick={() => setAuthMode("signin")}
+              >
+                Sign In
+              </button>
+            </div>
 
             {authMode === "register" ? (
-              <CreateUserForm onUserCreated={setCurrentUser} />
+              <CreateUserForm onUserCreated={() => setAuthMode("signin")} />
             ) : (
               <SignInForm onUserSignedIn={setCurrentUser} />
             )}
@@ -336,8 +438,8 @@ const filteredTransactionTotal = filteredTransactions.reduce(
 
             <div className="profile-stats">
               <div>
-                <span>{accounts.length}</span>
-                <p>Accounts</p>
+                <span>{wallets.length}</span>
+                <p>Wallets</p>
               </div>
 
               <div>
@@ -374,20 +476,130 @@ const filteredTransactionTotal = filteredTransactions.reduce(
 
       {currentUser && (
         <>
-          <section id="accounts">
+          <section id="wallets">
             <div className="section-header">
   <div className="section-title-block">
-    <h2>Accounts</h2>
-    <p>Manage your wallets, bank accounts, cards and savings.</p>
+    <h2>Wallets</h2>
+    <p>Create currency wallets, deposit funds, and view balances.</p>
   </div>
+
+  <div className="section-actions">
+  <button
+    type="button"
+    onClick={() => {
+      setShowWalletForm(!showWalletForm);
+      setShowDepositForm(false);
+      setShowTransferForm(false);
+    }}
+  >
+    {showWalletForm ? "Cancel" : "+ Add Wallet"}
+  </button>
 
   <button
     type="button"
-    onClick={() => setShowAccountForm(!showAccountForm)}
+    disabled={wallets.length === 0}
+    onClick={() => {
+      if (wallets.length === 0) {
+        return;
+      }
+
+      setShowDepositForm(!showDepositForm);
+      setShowWalletForm(false);
+      setShowTransferForm(false);
+    }}
   >
-    {showAccountForm ? "Cancel" : "+ Add Account"}
+    {showDepositForm ? "Cancel" : "Deposit"}
+  </button>
+
+  <button
+    type="button"
+    disabled={wallets.length === 0}
+    onClick={() => {
+      if (wallets.length === 0) {
+        return;
+      }
+
+      setShowTransferForm(!showTransferForm);
+      setShowWalletForm(false);
+      setShowDepositForm(false);
+    }}
+  >
+    {showTransferForm ? "Cancel" : "Transfer"}
   </button>
 </div>
+</div>
+
+            {showWalletForm && (
+              <CreateWalletForm onWalletCreated={handleWalletCreated} />
+            )}
+
+            {showDepositForm && (
+              <DepositWalletForm
+                wallets={wallets}
+                onDepositCompleted={handleDepositCompleted}
+              />
+            )}
+            {showTransferForm && (
+  <TransferWalletForm
+    wallets={wallets}
+    onTransferCompleted={handleTransferCompleted}
+  />
+)}
+
+            <div className="card dashboard-card">
+              {wallets.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No wallets yet</h3>
+                  <p>Create your first wallet to start using wallet transfers.</p>
+                </div>
+              ) : (
+                <div className="data-list">
+                  {wallets.map((wallet) => (
+                    <div className="data-row account-row" key={wallet.id}>
+                      <div className="account-left">
+                        <div className="account-icon">
+                          {getWalletIcon(wallet.currency)}
+                        </div>
+
+                        <div>
+                          <h3>{wallet.currency} Wallet</h3>
+
+                          <p>
+                            Status: {wallet.status || "active"} • Balance
+                            available
+                          </p>
+
+                          <small>Wallet ID: {wallet.id}</small>
+                        </div>
+                      </div>
+
+                      <strong className="amount">
+                        {formatCurrency(
+                          getWalletBalance(wallet),
+                          wallet.currency
+                        )}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section id="accounts">
+            <div className="section-header">
+              <div className="section-title-block">
+                <h2>Accounts</h2>
+                <p>Manage your wallets, bank accounts, cards and savings.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAccountForm(!showAccountForm)}
+              >
+                {showAccountForm ? "Cancel" : "+ Add Account"}
+              </button>
+            </div>
 
             {showAccountForm && (
               <CreateAccountForm
@@ -405,29 +617,27 @@ const filteredTransactionTotal = filteredTransactions.reduce(
               ) : (
                 <div className="data-list">
                   {accounts.map((account) => (
-  <div className="data-row account-row" key={account.id}>
-    <div className="account-left">
-      <div className="account-icon">
-        {getAccountIcon(account.accountType)}
-      </div>
+                    <div className="data-row account-row" key={account.id}>
+                      <div className="account-left">
+                        <div className="account-icon">
+                          {getAccountIcon(account.accountType)}
+                        </div>
 
-      <div>
-        <h3>{account.name}</h3>
+                        <div>
+                          <h3>{account.name}</h3>
 
-        <p>
-          {account.institution || "No institution"} •{" "}
-          {account.accountType} account
-        </p>
+                          <p>
+                            {account.institution || "No institution"} •{" "}
+                            {account.accountType} account
+                          </p>
 
-        <small>
-          Created {formatDate(account.createdAt)}
-        </small>
-      </div>
-    </div>
+                          <small>Created {formatDate(account.createdAt)}</small>
+                        </div>
+                      </div>
 
-    <span className="badge">{account.currency}</span>
-  </div>
-))}
+                      <span className="badge">{account.currency}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -437,20 +647,20 @@ const filteredTransactionTotal = filteredTransactions.reduce(
             <>
               <section id="transactions">
                 <div className="section-header">
-  <div className="section-title-block">
-    <h2>Transactions</h2>
-    <p>Track, search, filter and sort your spending activity.</p>
-  </div>
+                  <div className="section-title-block">
+                    <h2>Transactions</h2>
+                    <p>Track, search, filter and sort your spending activity.</p>
+                  </div>
 
-  <button
-    type="button"
-    onClick={() =>
-      setShowTransactionForm(!showTransactionForm)
-    }
-  >
-    {showTransactionForm ? "Cancel" : "+ Add Transaction"}
-  </button>
-</div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowTransactionForm(!showTransactionForm)
+                    }
+                  >
+                    {showTransactionForm ? "Cancel" : "+ Add Transaction"}
+                  </button>
+                </div>
 
                 {showTransactionForm && (
                   <CreateTransactionForm
@@ -469,42 +679,50 @@ const filteredTransactionTotal = filteredTransactions.reduce(
                   ) : (
                     <>
                       <div className="transaction-tools">
-  <input
-    type="text"
-    placeholder="Search transactions..."
-    value={transactionSearch}
-    onChange={(e) => setTransactionSearch(e.target.value)}
-  />
+                        <input
+                          type="text"
+                          placeholder="Search transactions..."
+                          value={transactionSearch}
+                          onChange={(e) =>
+                            setTransactionSearch(e.target.value)
+                          }
+                        />
 
-  <select
-    value={transactionCategoryFilter}
-    onChange={(e) => setTransactionCategoryFilter(e.target.value)}
-  >
-    {transactionCategories.map((category) => (
-      <option key={category} value={category}>
-        {category}
-      </option>
-    ))}
-  </select>
+                        <select
+                          value={transactionCategoryFilter}
+                          onChange={(e) =>
+                            setTransactionCategoryFilter(e.target.value)
+                          }
+                        >
+                          {transactionCategories.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
 
-  <select
-    value={transactionSort}
-    onChange={(e) => setTransactionSort(e.target.value)}
-  >
-    <option value="newest">Newest first</option>
-    <option value="oldest">Oldest first</option>
-    <option value="highest">Highest amount</option>
-    <option value="lowest">Lowest amount</option>
-  </select>
-</div>
+                        <select
+                          value={transactionSort}
+                          onChange={(e) => setTransactionSort(e.target.value)}
+                        >
+                          <option value="newest">Newest first</option>
+                          <option value="oldest">Oldest first</option>
+                          <option value="highest">Highest amount</option>
+                          <option value="lowest">Lowest amount</option>
+                        </select>
+                      </div>
 
-<div className="transaction-stats">
-  <span>
-    Showing {filteredTransactions.length} of {transactions.length} transactions
-  </span>
+                      <div className="transaction-stats">
+                        <span>
+                          Showing {filteredTransactions.length} of{" "}
+                          {transactions.length} transactions
+                        </span>
 
-  <strong>Filtered total: {formatCurrency(filteredTransactionTotal)}</strong>
-</div>
+                        <strong>
+                          Filtered total:{" "}
+                          {formatCurrency(filteredTransactionTotal)}
+                        </strong>
+                      </div>
 
                       {filteredTransactions.length === 0 ? (
                         <div className="empty-state">
@@ -513,8 +731,8 @@ const filteredTransactionTotal = filteredTransactions.reduce(
                         </div>
                       ) : (
                         <div className="data-list">
-{sortedFilteredTransactions.map((transaction) => {
-                              const categoryStyle = getCategoryStyle(
+                          {sortedFilteredTransactions.map((transaction) => {
+                            const categoryStyle = getCategoryStyle(
                               transaction.category
                             );
 
@@ -543,14 +761,11 @@ const filteredTransactionTotal = filteredTransactions.reduce(
                                   </div>
 
                                   <p>
-                                    {transaction.description ||
-                                      "No description"}
+                                    {transaction.description || "No description"}
                                   </p>
 
                                   <small>
-                                    {formatDate(
-                                      transaction.transactionDate
-                                    )}
+                                    {formatDate(transaction.transactionDate)}
                                   </small>
                                 </div>
 
@@ -572,18 +787,18 @@ const filteredTransactionTotal = filteredTransactions.reduce(
 
               <section id="budgets">
                 <div className="section-header">
-  <div className="section-title-block">
-    <h2>Budgets</h2>
-    <p>Set monthly limits and monitor how much budget remains.</p>
-  </div>
+                  <div className="section-title-block">
+                    <h2>Budgets</h2>
+                    <p>Set monthly limits and monitor how much budget remains.</p>
+                  </div>
 
-  <button
-    type="button"
-    onClick={() => setShowBudgetForm(!showBudgetForm)}
-  >
-    {showBudgetForm ? "Cancel" : "+ Add Budget"}
-  </button>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBudgetForm(!showBudgetForm)}
+                  >
+                    {showBudgetForm ? "Cancel" : "+ Add Budget"}
+                  </button>
+                </div>
 
                 {showBudgetForm && (
                   <CreateBudgetForm
@@ -711,9 +926,7 @@ const filteredTransactionTotal = filteredTransactions.reduce(
                             </div>
 
                             <div className="budget-footer">
-                              <small>
-                                {actualPercentage}% of budget used
-                              </small>
+                              <small>{actualPercentage}% of budget used</small>
                               <small>
                                 {isOverBudget
                                   ? "You passed your monthly limit"
@@ -732,11 +945,11 @@ const filteredTransactionTotal = filteredTransactions.reduce(
 
           <section id="analytics">
             <div className="section-header">
-  <div className="section-title-block">
-    <h2>Analytics</h2>
-    <p>Visual insights based on your transaction categories.</p>
-  </div>
-</div>
+              <div className="section-title-block">
+                <h2>Analytics</h2>
+                <p>Visual insights based on your transaction categories.</p>
+              </div>
+            </div>
 
             <AnalyticsPanel
               userId={currentUser.id}

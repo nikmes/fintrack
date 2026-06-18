@@ -1378,3 +1378,15 @@ button:disabled:hover {
 .profile-stats p {
   font-weight: 700;
 }
+.section-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .section-actions {
+    justify-content: center;
+  }
+}

@@ -4,6 +4,7 @@ import { loginUser } from "../services/api";
 function SignInForm({ onUserSignedIn }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -13,12 +14,20 @@ function SignInForm({ onUserSignedIn }) {
     setIsSubmitting(true);
 
     try {
-      const user = await loginUser(email, password);
-      onUserSignedIn(user);
+      const data = await loginUser({
+        email,
+        password,
+      });
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("currentUser", JSON.stringify(data.user));
+
+      onUserSignedIn(data.user);
+
       setEmail("");
       setPassword("");
     } catch (err) {
-      setError("Invalid email or password.");
+      setError(err.message || "Invalid email or password.");
     } finally {
       setIsSubmitting(false);
     }
@@ -28,11 +37,11 @@ function SignInForm({ onUserSignedIn }) {
     <div className="card form-card">
       <div className="form-card-header">
         <h2>Sign In</h2>
-        <p>Enter your email and password to access your dashboard.</p>
+        <p>Enter your email and password to load your FinTrack dashboard.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="form-grid">
-        <div className="form-field">
+        <div className="form-field full-width">
           <label>Email</label>
           <input
             type="email"
@@ -43,7 +52,7 @@ function SignInForm({ onUserSignedIn }) {
           />
         </div>
 
-        <div className="form-field">
+        <div className="form-field full-width">
           <label>Password</label>
           <input
             type="password"

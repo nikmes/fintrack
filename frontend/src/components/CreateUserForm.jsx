@@ -5,6 +5,7 @@ function CreateUserForm({ onUserCreated }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,18 +17,21 @@ function CreateUserForm({ onUserCreated }) {
     setIsSubmitting(true);
 
     try {
-      const user = await createUser({
+      await createUser({
         email,
         password,
         fullName,
       });
 
-      onUserCreated(user);
-
       setEmail("");
       setPassword("");
       setFullName("");
-      setMessage("Account created successfully.");
+
+      setMessage("Account created successfully. Please sign in.");
+
+      if (onUserCreated) {
+        onUserCreated();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,7 +43,7 @@ function CreateUserForm({ onUserCreated }) {
     <div className="card form-card">
       <div className="form-card-header">
         <h2>Create Account</h2>
-        <p>Register a user profile to start using FinTrack.</p>
+        <p>Register a user profile, then sign in to access your dashboard.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="form-grid">

@@ -1,22 +1,70 @@
 const API_URL = "http://localhost:8080/api";
 
+function getStoredToken() {
+  return localStorage.getItem("token");
+}
+
 async function request(endpoint, options = {}) {
+  const token = localStorage.getItem("token");
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
     ...options,
+    headers,
   });
 
-  const data = await response.json().catch(() => null);
+  const rawText = await response.text();
+
+  let data = null;
+
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    data = rawText;
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || "Something went wrong");
+    console.error("API error:", {
+      endpoint,
+      status: response.status,
+      data,
+    });
+
+    if (response.status === 401) {
+      throw new Error("Your session expired. Please sign out and sign in again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You are not allowed to perform this action.");
+    }
+
+    if (response.status === 409) {
+      throw new Error(data?.message || data?.title || "Wallet already exists.");
+    }
+
+    throw new Error(
+      data?.message ||
+        data?.title ||
+        data?.detail ||
+        data ||
+        `Request failed with status ${response.status}`
+    );
   }
 
   return data;
 }
+
+/* =========================
+   Auth / Users
+   ========================= */
 
 export function createUser(user) {
   return request("/users", {
@@ -24,6 +72,68 @@ export function createUser(user) {
     body: JSON.stringify(user),
   });
 }
+
+export function loginUser(credentials) {
+  return request("/users/login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+/* =========================
+   Wallets
+   ========================= */
+
+export function createWallet(wallet) {
+  return request("/wallets", {
+    method: "POST",
+    body: JSON.stringify(wallet),
+  });
+}
+
+export function getWallets() {
+  return request("/wallets");
+}
+
+export function getWalletById(walletId) {
+  return request(`/wallets/${walletId}`);
+}
+
+export function depositToWallet(walletId, amount) {
+  return request(`/wallets/${walletId}/deposit`, {
+    method: "POST",
+    body: JSON.stringify({
+      amount: Number(amount),
+    }),
+  });
+}
+
+export function transferBetweenWallets(transfer) {
+  return request("/wallets/transfer", {
+    method: "POST",
+    body: JSON.stringify({
+      sourceWalletId: transfer.sourceWalletId,
+      destinationWalletId: transfer.destinationWalletId,
+      amount: Number(transfer.amount),
+      currency: transfer.currency,
+      description: transfer.description,
+    }),
+  });
+}
+
+export function getWalletTransactions(walletId) {
+  return request(`/wallets/${walletId}/transactions`);
+}
+
+export function getLedgerTransaction(transactionId) {
+  return request(`/ledger-transactions/${transactionId}`);
+}
+
+/* =========================
+   Old finance endpoints
+   Keep temporarily until we fully migrate the UI
+   ========================= */
+
 export function createAccount(account) {
   return request("/accounts", {
     method: "POST",
@@ -34,6 +144,7 @@ export function createAccount(account) {
 export function getAccounts(userId) {
   return request(`/accounts?userId=${userId}`);
 }
+
 export function createTransaction(transaction) {
   return request("/transactions", {
     method: "POST",
@@ -44,6 +155,7 @@ export function createTransaction(transaction) {
 export function getTransactions(userId) {
   return request(`/transactions?userId=${userId}`);
 }
+
 export function createBudget(budget) {
   return request("/budgets", {
     method: "POST",
@@ -54,16 +166,7 @@ export function createBudget(budget) {
 export function getBudgets(userId) {
   return request(`/budgets?userId=${userId}`);
 }
+
 export function getSpendingByCategory(userId) {
   return request(`/analytics/spending-by-category?userId=${userId}`);
-}
-export function getUserById(userId) {
-  return request(`/users/${userId}`);
-}
-
-export function loginUser(email, password) {
-  return request("/users/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
 }
