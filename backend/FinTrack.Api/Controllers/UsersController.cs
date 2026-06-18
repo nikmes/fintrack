@@ -3,6 +3,7 @@ using System.Text;
 using FinTrack.Api.Data;
 using FinTrack.Api.DTOs.Users;
 using FinTrack.Api.Models;
+using FinTrack.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,8 +14,13 @@ namespace FinTrack.Api.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly FinTrackDbContext _db;
+    private readonly ITokenService _tokenService;
 
-    public UsersController(FinTrackDbContext db) => _db = db;
+    public UsersController(FinTrackDbContext db, ITokenService tokenService)
+    {
+        _db = db;
+        _tokenService = tokenService;
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserRequest request)
@@ -44,7 +50,9 @@ public class UsersController : ControllerBase
         if (user is null)
             return Unauthorized(new { message = "Invalid email or password." });
 
-        return Ok(ToResponse(user));
+        var token = _tokenService.GenerateToken(user);
+
+        return Ok(new LoginResponse { User = ToResponse(user), Token = token });
     }
 
     [HttpGet("{id:guid}")]
