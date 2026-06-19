@@ -50,6 +50,30 @@ public class WalletsController : ControllerBase
         return Ok(ToResponse(wallet));
     }
 
+    [HttpGet("lookup")]
+    public async Task<IActionResult> Lookup([FromQuery] string email, [FromQuery] string currency)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(currency))
+            return BadRequest(new { message = "email and currency are required." });
+
+        var result = await _walletService.LookupWalletsByEmailAsync(email.Trim(), currency.Trim());
+        if (result is null)
+            return NotFound(new { message = "No active wallet found for that email and currency." });
+
+        var (fullName, wallets) = result.Value;
+
+        return Ok(new WalletLookupResponse
+        {
+            FullName = fullName,
+            Wallets = wallets.Select(w => new WalletSummaryResponse
+            {
+                Id = w.Id,
+                Name = w.Name,
+                Currency = w.Currency,
+            }).ToList(),
+        });
+    }
+
     [HttpPost("{id:guid}/deposit")]
     public async Task<IActionResult> Deposit(Guid id, [FromBody] DepositRequest request)
     {

@@ -1062,6 +1062,19 @@ section {
   grid-column: 1 / -1;
 }
 
+.form-inline-action {
+  display: flex;
+  gap: 8px;
+}
+
+.form-inline-action input {
+  flex: 1;
+}
+
+.form-inline-action button {
+  white-space: nowrap;
+}
+
 .form-actions {
   display: flex;
   justify-content: center;
