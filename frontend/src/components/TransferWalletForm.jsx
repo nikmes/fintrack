@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
-import { transferBetweenWallets } from "../services/api";
+import { transferBetweenWallets, lookupWalletByEmail } from "../services/api";
 
 function TransferWalletForm({ wallets, onTransferCompleted }) {
   const [sourceWalletId, setSourceWalletId] = useState("");
-  const [destinationWalletId, setDestinationWalletId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [description, setDescription] = useState("");
+
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientWallets, setRecipientWallets] = useState([]);
+  const [destinationWalletId, setDestinationWalletId] = useState("");
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState("");
 
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +32,47 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     if (selectedWallet) {
       setCurrency(selectedWallet.currency || "EUR");
     }
+
+    resetRecipient();
+  }
+
+  function handleCurrencyChange(value) {
+    setCurrency(value);
+    resetRecipient();
+  }
+
+  function resetRecipient() {
+    setRecipientName("");
+    setRecipientWallets([]);
+    setDestinationWalletId("");
+    setLookupError("");
+  }
+
+  async function handleFindRecipient() {
+    setLookupError("");
+    resetRecipient();
+
+    if (!recipientEmail.trim()) {
+      setLookupError("Enter the recipient's email.");
+      return;
+    }
+
+    try {
+      setIsLookingUp(true);
+
+      const result = await lookupWalletByEmail(recipientEmail, currency);
+
+      setRecipientName(result.fullName);
+      setRecipientWallets(result.wallets);
+
+      if (result.wallets.length === 1) {
+        setDestinationWalletId(result.wallets[0].id);
+      }
+    } catch (err) {
+      setLookupError(err.message);
+    } finally {
+      setIsLookingUp(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -38,7 +85,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     }
 
     if (!destinationWalletId) {
-      setError("Please enter a destination wallet ID.");
+      setError("Please find a recipient and select which wallet to send to.");
       return;
     }
 
@@ -63,7 +110,8 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         description,
       });
 
-      setDestinationWalletId("");
+      setRecipientEmail("");
+      resetRecipient();
       setAmount("");
       setDescription("");
 
@@ -95,7 +143,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
           >
             {wallets.map((wallet) => (
               <option key={wallet.id} value={wallet.id}>
-                {wallet.currency} Wallet
+                {wallet.name ? `${wallet.name} (${wallet.currency})` : `${wallet.currency} Wallet`}
               </option>
             ))}
           </select>
@@ -104,7 +152,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         <div className="form-field">
           <label>Currency</label>
 
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select value={currency} onChange={(e) => handleCurrencyChange(e.target.value)}>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
             <option value="GBP">GBP</option>
@@ -112,16 +160,51 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         </div>
 
         <div className="form-field full-width">
-          <label>Destination wallet ID</label>
+          <label>Recipient's email</label>
 
-          <input
-            type="text"
-            placeholder="Paste destination wallet ID"
-            value={destinationWalletId}
-            onChange={(e) => setDestinationWalletId(e.target.value)}
-            required
-          />
+          <div className="form-inline-action">
+            <input
+              type="email"
+              placeholder="Example: friend@email.com"
+              value={recipientEmail}
+              onChange={(e) => {
+                setRecipientEmail(e.target.value);
+                resetRecipient();
+              }}
+              required
+            />
+
+            <button type="button" onClick={handleFindRecipient} disabled={isLookingUp}>
+              {isLookingUp ? "Searching..." : "Find"}
+            </button>
+          </div>
+
+          {lookupError && <p className="error">{lookupError}</p>}
+
+          {recipientName && (
+            <p className="success">Sending to {recipientName}</p>
+          )}
         </div>
+
+        {recipientWallets.length > 1 && (
+          <div className="form-field full-width">
+            <label>Recipient's wallet</label>
+
+            <select
+              value={destinationWalletId}
+              onChange={(e) => setDestinationWalletId(e.target.value)}
+              required
+            >
+              <option value="">Select a wallet</option>
+
+              {recipientWallets.map((wallet) => (
+                <option key={wallet.id} value={wallet.id}>
+                  {wallet.name} ({wallet.currency})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="form-field">
           <label>Amount</label>
@@ -148,7 +231,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         </div>
 
         <div className="form-actions full-width">
-          <button type="submit" disabled={isSubmitting}>
+          <button type="submit" disabled={isSubmitting || !destinationWalletId}>
             {isSubmitting ? "Transferring..." : "Transfer Funds"}
           </button>
         </div>

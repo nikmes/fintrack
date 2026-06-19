@@ -112,13 +112,18 @@ export function transferBetweenWallets(transfer) {
   return request("/wallets/transfer", {
     method: "POST",
     body: JSON.stringify({
-      sourceWalletId: transfer.sourceWalletId,
-      destinationWalletId: transfer.destinationWalletId,
+      sourceWalletId: transfer.sourceWalletId.trim(),
+      destinationWalletId: transfer.destinationWalletId.trim(),
       amount: Number(transfer.amount),
       currency: transfer.currency,
       description: transfer.description,
     }),
   });
+}
+
+export function lookupWalletByEmail(email, currency) {
+  const params = new URLSearchParams({ email: email.trim(), currency });
+  return request(`/wallets/lookup?${params.toString()}`);
 }
 
 export function getWalletTransactions(walletId) {

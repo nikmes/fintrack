@@ -45,6 +45,25 @@ public class WalletService : IWalletService
     public Task<Wallet?> GetWalletByIdAsync(Guid walletId, Guid userId, CancellationToken cancellationToken = default) =>
         _db.Wallets.FirstOrDefaultAsync(w => w.Id == walletId && w.UserId == userId, cancellationToken);
 
+    public async Task<(string FullName, List<Wallet> Wallets)?> LookupWalletsByEmailAsync(string email, string currency, CancellationToken cancellationToken = default)
+    {
+        currency = currency.ToUpperInvariant();
+
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        if (user is null)
+            return null;
+
+        var wallets = await _db.Wallets
+            .Where(w => w.UserId == user.Id && w.Currency == currency && w.Status == "active" && !w.IsSystem)
+            .OrderBy(w => w.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        if (wallets.Count == 0)
+            return null;
+
+        return (user.FullName ?? user.Email, wallets);
+    }
+
     public async Task<Dictionary<Guid, Wallet>> LockWalletsAsync(IEnumerable<Guid> walletIds, CancellationToken cancellationToken = default)
     {
         var orderedIds = walletIds.Distinct().OrderBy(id => id).ToList();

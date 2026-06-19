@@ -159,4 +159,64 @@ public class WalletServiceTests
         Assert.Single(results);
         Assert.Equal(walletA.Id, results[0].Id);
     }
+
+    [Fact]
+    public async Task LookupWalletsByEmail_FindsActiveWalletsInCurrency()
+    {
+        using var db = _fixture.CreateDbContext();
+        var ledgerService = new LedgerService(db);
+        var walletService = new WalletService(db, ledgerService);
+
+        var recipient = await TestData.CreateUserAsync(db);
+        var matchingWallet = await TestData.CreateWalletAsync(db, recipient.Id, "EUR", name: "Spending");
+        await TestData.CreateWalletAsync(db, recipient.Id, "USD", name: "Travel");
+
+        var result = await walletService.LookupWalletsByEmailAsync(recipient.Email, "eur");
+
+        Assert.NotNull(result);
+        Assert.Equal(recipient.FullName, result.Value.FullName);
+        Assert.Equal(new[] { matchingWallet.Id }, result.Value.Wallets.Select(w => w.Id));
+    }
+
+    [Fact]
+    public async Task LookupWalletsByEmail_UnknownEmail_ReturnsNull()
+    {
+        using var db = _fixture.CreateDbContext();
+        var ledgerService = new LedgerService(db);
+        var walletService = new WalletService(db, ledgerService);
+
+        var result = await walletService.LookupWalletsByEmailAsync("nobody@nowhere.test", "EUR");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task LookupWalletsByEmail_NoMatchingCurrency_ReturnsNull()
+    {
+        using var db = _fixture.CreateDbContext();
+        var ledgerService = new LedgerService(db);
+        var walletService = new WalletService(db, ledgerService);
+
+        var recipient = await TestData.CreateUserAsync(db);
+        await TestData.CreateWalletAsync(db, recipient.Id, "USD");
+
+        var result = await walletService.LookupWalletsByEmailAsync(recipient.Email, "EUR");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task LookupWalletsByEmail_ExcludesFrozenWallets()
+    {
+        using var db = _fixture.CreateDbContext();
+        var ledgerService = new LedgerService(db);
+        var walletService = new WalletService(db, ledgerService);
+
+        var recipient = await TestData.CreateUserAsync(db);
+        await TestData.CreateWalletAsync(db, recipient.Id, "EUR", status: "frozen");
+
+        var result = await walletService.LookupWalletsByEmailAsync(recipient.Email, "EUR");
+
+        Assert.Null(result);
+    }
 }
