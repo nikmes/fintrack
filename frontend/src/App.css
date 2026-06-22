@@ -1403,3 +1403,148 @@ button:disabled:hover {
     justify-content: center;
   }
 }
+.wallet-activity-card {
+  margin-top: 0;
+}
+
+.wallet-activity-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.wallet-activity-toolbar button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.wallet-activity-select {
+  max-width: 360px;
+  flex: 1;
+}
+
+.activity-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.activity-icon.credit {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.activity-icon.debit {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.activity-amount {
+  padding: 9px 13px;
+  border-radius: 999px;
+  font-size: 18px;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.activity-amount.credit {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.activity-amount.debit {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+@media (max-width: 700px) {
+  .wallet-activity-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wallet-activity-select {
+    max-width: 100%;
+  }
+}
+.wallet-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.wallet-id-row small {
+  margin-top: 0;
+}
+
+.copy-button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  box-shadow: none;
+}
+
+.copy-button:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.16);
+}
+.transfer-balance-card {
+  max-width: 360px;
+  margin: 0 auto 24px;
+  padding: 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  border: 1px solid #bfdbfe;
+  text-align: center;
+}
+
+.transfer-balance-card span {
+  display: block;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.transfer-balance-card strong {
+  display: block;
+  color: #2563eb;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.transfer-balance-card p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.form-helper {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.form-warning {
+  margin-top: 4px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 800;
+}

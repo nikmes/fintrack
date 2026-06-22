@@ -1,21 +1,27 @@
 import { useEffect, useState } from "react";
-import { transferBetweenWallets, lookupWalletByEmail } from "../services/api";
+import { transferBetweenWallets } from "../services/api";
 
 function TransferWalletForm({ wallets, onTransferCompleted }) {
   const [sourceWalletId, setSourceWalletId] = useState("");
+  const [destinationWalletId, setDestinationWalletId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [description, setDescription] = useState("");
 
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientWallets, setRecipientWallets] = useState([]);
-  const [destinationWalletId, setDestinationWalletId] = useState("");
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupError, setLookupError] = useState("");
-
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selectedWallet = wallets.find((wallet) => wallet.id === sourceWalletId);
+
+  const selectedWalletBalance = Number(
+    selectedWallet?.balance ??
+      selectedWallet?.availableBalance ??
+      selectedWallet?.currentBalance ??
+      0
+  );
+
+  const amountNumber = Number(amount || 0);
+  const isAmountTooHigh = amountNumber > selectedWalletBalance;
 
   useEffect(() => {
     if (!sourceWalletId && wallets.length > 0) {
@@ -24,54 +30,20 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     }
   }, [wallets, sourceWalletId]);
 
+  function formatCurrency(value, walletCurrency = "EUR") {
+    return new Intl.NumberFormat("en-CY", {
+      style: "currency",
+      currency: walletCurrency,
+    }).format(Number(value || 0));
+  }
+
   function handleSourceWalletChange(walletId) {
     setSourceWalletId(walletId);
 
-    const selectedWallet = wallets.find((wallet) => wallet.id === walletId);
+    const wallet = wallets.find((item) => item.id === walletId);
 
-    if (selectedWallet) {
-      setCurrency(selectedWallet.currency || "EUR");
-    }
-
-    resetRecipient();
-  }
-
-  function handleCurrencyChange(value) {
-    setCurrency(value);
-    resetRecipient();
-  }
-
-  function resetRecipient() {
-    setRecipientName("");
-    setRecipientWallets([]);
-    setDestinationWalletId("");
-    setLookupError("");
-  }
-
-  async function handleFindRecipient() {
-    setLookupError("");
-    resetRecipient();
-
-    if (!recipientEmail.trim()) {
-      setLookupError("Enter the recipient's email.");
-      return;
-    }
-
-    try {
-      setIsLookingUp(true);
-
-      const result = await lookupWalletByEmail(recipientEmail, currency);
-
-      setRecipientName(result.fullName);
-      setRecipientWallets(result.wallets);
-
-      if (result.wallets.length === 1) {
-        setDestinationWalletId(result.wallets[0].id);
-      }
-    } catch (err) {
-      setLookupError(err.message);
-    } finally {
-      setIsLookingUp(false);
+    if (wallet) {
+      setCurrency(wallet.currency || "EUR");
     }
   }
 
@@ -85,7 +57,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     }
 
     if (!destinationWalletId) {
-      setError("Please find a recipient and select which wallet to send to.");
+      setError("Please enter a destination wallet ID.");
       return;
     }
 
@@ -94,8 +66,13 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
       return;
     }
 
-    if (Number(amount) <= 0) {
+    if (amountNumber <= 0) {
       setError("Amount must be greater than 0.");
+      return;
+    }
+
+    if (amountNumber > selectedWalletBalance) {
+      setError("You cannot transfer more than your available balance.");
       return;
     }
 
@@ -105,13 +82,12 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
       await transferBetweenWallets({
         sourceWalletId,
         destinationWalletId,
-        amount,
+        amount: amountNumber,
         currency,
         description,
       });
 
-      setRecipientEmail("");
-      resetRecipient();
+      setDestinationWalletId("");
       setAmount("");
       setDescription("");
 
@@ -129,8 +105,18 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     <div className="card form-card">
       <div className="form-card-header">
         <h2>Transfer Funds</h2>
-        <p>Move money from one wallet to another wallet.</p>
+        <p>Move money from one wallet to another wallet securely.</p>
       </div>
+
+      {selectedWallet && (
+        <div className="transfer-balance-card">
+          <span>Available balance</span>
+          <strong>
+            {formatCurrency(selectedWalletBalance, selectedWallet.currency)}
+          </strong>
+          <p>{selectedWallet.currency} Wallet</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="form-grid">
         <div className="form-field">
@@ -143,7 +129,14 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
           >
             {wallets.map((wallet) => (
               <option key={wallet.id} value={wallet.id}>
-                {wallet.name ? `${wallet.name} (${wallet.currency})` : `${wallet.currency} Wallet`}
+                {wallet.currency} Wallet —{" "}
+                {formatCurrency(
+                  wallet.balance ??
+                    wallet.availableBalance ??
+                    wallet.currentBalance ??
+                    0,
+                  wallet.currency
+                )}
               </option>
             ))}
           </select>
@@ -152,59 +145,24 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         <div className="form-field">
           <label>Currency</label>
 
-          <select value={currency} onChange={(e) => handleCurrencyChange(e.target.value)}>
-            <option value="EUR">EUR</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
-          </select>
+          <input type="text" value={currency} readOnly />
         </div>
 
         <div className="form-field full-width">
-          <label>Recipient's email</label>
+          <label>Destination wallet ID</label>
 
-          <div className="form-inline-action">
-            <input
-              type="email"
-              placeholder="Example: friend@email.com"
-              value={recipientEmail}
-              onChange={(e) => {
-                setRecipientEmail(e.target.value);
-                resetRecipient();
-              }}
-              required
-            />
+          <input
+            type="text"
+            placeholder="Paste destination wallet ID"
+            value={destinationWalletId}
+            onChange={(e) => setDestinationWalletId(e.target.value)}
+            required
+          />
 
-            <button type="button" onClick={handleFindRecipient} disabled={isLookingUp}>
-              {isLookingUp ? "Searching..." : "Find"}
-            </button>
-          </div>
-
-          {lookupError && <p className="error">{lookupError}</p>}
-
-          {recipientName && (
-            <p className="success">Sending to {recipientName}</p>
-          )}
+          <small className="form-helper">
+            Use the Copy ID button from another wallet and paste it here.
+          </small>
         </div>
-
-        {recipientWallets.length > 1 && (
-          <div className="form-field full-width">
-            <label>Recipient's wallet</label>
-
-            <select
-              value={destinationWalletId}
-              onChange={(e) => setDestinationWalletId(e.target.value)}
-              required
-            >
-              <option value="">Select a wallet</option>
-
-              {recipientWallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id}>
-                  {wallet.name} ({wallet.currency})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div className="form-field">
           <label>Amount</label>
@@ -217,6 +175,12 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
             onChange={(e) => setAmount(e.target.value)}
             required
           />
+
+          {amount && isAmountTooHigh && (
+            <small className="form-warning">
+              Amount exceeds your available balance.
+            </small>
+          )}
         </div>
 
         <div className="form-field">
@@ -231,7 +195,10 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
         </div>
 
         <div className="form-actions full-width">
-          <button type="submit" disabled={isSubmitting || !destinationWalletId}>
+          <button
+            type="submit"
+            disabled={isSubmitting || isAmountTooHigh || wallets.length === 0}
+          >
             {isSubmitting ? "Transferring..." : "Transfer Funds"}
           </button>
         </div>

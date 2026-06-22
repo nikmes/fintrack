@@ -6,6 +6,7 @@ import SignInForm from "./components/SignInForm";
 import CreateWalletForm from "./components/CreateWalletForm";
 import DepositWalletForm from "./components/DepositWalletForm";
 import TransferWalletForm from "./components/TransferWalletForm";
+import WalletActivityPanel from "./components/WalletActivityPanel";
 import CreateAccountForm from "./components/CreateAccountForm";
 import CreateTransactionForm from "./components/CreateTransactionForm";
 import CreateBudgetForm from "./components/CreateBudgetForm";
@@ -195,6 +196,15 @@ function App() {
       0
     );
   }
+  async function copyWalletId(walletId) {
+  try {
+    await navigator.clipboard.writeText(walletId);
+    alert("Wallet ID copied.");
+  } catch (err) {
+    console.error("Failed to copy wallet ID:", err);
+    alert("Failed to copy wallet ID.");
+  }
+}
 
   function handleWalletCreated(wallet) {
     setWallets([wallet, ...wallets]);
@@ -569,7 +579,17 @@ function App() {
                             available
                           </p>
 
-                          <small>Wallet ID: {wallet.id}</small>
+                          <div className="wallet-id-row">
+  <small>Wallet ID: {wallet.id}</small>
+
+  <button
+    type="button"
+    className="copy-button"
+    onClick={() => copyWalletId(wallet.id)}
+  >
+    Copy ID
+  </button>
+</div>
                         </div>
                       </div>
 
@@ -584,8 +604,18 @@ function App() {
                 </div>
               )}
             </div>
+            
           </section>
+              <section id="wallet-activity">
+  <div className="section-header">
+    <div className="section-title-block">
+      <h2>Wallet Activity</h2>
+      <p>View deposits and transfers recorded for each wallet.</p>
+    </div>
+  </div>
 
+  <WalletActivityPanel wallets={wallets} />
+</section>
           <section id="accounts">
             <div className="section-header">
               <div className="section-title-block">
