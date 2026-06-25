@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { transferBetweenWallets } from "../services/api";
 
-function TransferWalletForm({ wallets, onTransferCompleted }) {
+function TransferWalletForm({ wallets, onTransferCompleted, onNotify }) {
   const [sourceWalletId, setSourceWalletId] = useState("");
   const [destinationWalletId, setDestinationWalletId] = useState("");
   const [amount, setAmount] = useState("");
@@ -28,10 +28,22 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
   );
 
   const amountNumber = Number(amount || 0);
+  const isAmountInvalid = amount.trim() !== "" && amountNumber <= 0;
   const isAmountTooHigh = amountNumber > selectedWalletBalance;
   const trimmedDestinationWalletId = destinationWalletId.trim();
+  const isSameWallet =
+    Boolean(trimmedDestinationWalletId) &&
+    effectiveSourceWalletId === trimmedDestinationWalletId;
   const remainingBalance = selectedWalletBalance - amountNumber;
   const effectiveCurrency = selectedWallet?.currency || currency || "EUR";
+  const isTransferReady =
+    Boolean(effectiveSourceWalletId) &&
+    Boolean(trimmedDestinationWalletId) &&
+    amountNumber > 0 &&
+    !isAmountInvalid &&
+    !isAmountTooHigh &&
+    !isSameWallet &&
+    wallets.length > 0;
 
   function formatCurrency(value, walletCurrency = "EUR") {
     return new Intl.NumberFormat("en-CY", {
@@ -50,6 +62,18 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
     }
   }
 
+  function shortenWalletId(walletId) {
+    if (!walletId) {
+      return "Destination wallet";
+    }
+
+    if (walletId.length <= 14) {
+      return walletId;
+    }
+
+    return `${walletId.slice(0, 6)}...${walletId.slice(-6)}`;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -64,7 +88,7 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
       return;
     }
 
-    if (effectiveSourceWalletId === trimmedDestinationWalletId) {
+    if (isSameWallet) {
       setError("Source and destination wallets cannot be the same.");
       return;
     }
@@ -95,10 +119,16 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
       setDescription("");
 
       if (onTransferCompleted) {
-        await onTransferCompleted();
+        await onTransferCompleted({
+          sourceWalletId: effectiveSourceWalletId,
+          destinationWalletId: trimmedDestinationWalletId,
+        });
       }
     } catch (err) {
-      setError(err.message);
+      const message = err.message || "Could not complete transfer.";
+
+      setError(message);
+      onNotify?.({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -189,6 +219,12 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
           <small className="form-helper">
             Use the Copy ID button from another wallet and paste it here.
           </small>
+
+          {isSameWallet && (
+            <small className="form-warning">
+              Source and destination wallets cannot be the same.
+            </small>
+          )}
         </div>
 
         <div className="form-field">
@@ -208,6 +244,12 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
               Amount exceeds your available balance.
             </small>
           )}
+
+          {isAmountInvalid && (
+            <small className="form-warning">
+              Amount must be greater than 0.
+            </small>
+          )}
         </div>
 
         <div className="form-field">
@@ -221,11 +263,42 @@ function TransferWalletForm({ wallets, onTransferCompleted }) {
           />
         </div>
 
+        {(trimmedDestinationWalletId || amountNumber > 0 || description) && (
+          <div
+            className={
+              isAmountTooHigh || isSameWallet
+                ? "transfer-summary-card warning full-width"
+                : "transfer-summary-card full-width"
+            }
+          >
+            <div>
+              <span>From</span>
+              <strong>{selectedWallet?.currency || effectiveCurrency} Wallet</strong>
+            </div>
+
+            <div>
+              <span>To</span>
+              <strong>{shortenWalletId(trimmedDestinationWalletId)}</strong>
+            </div>
+
+            <div>
+              <span>Amount</span>
+              <strong>{formatCurrency(amountNumber, effectiveCurrency)}</strong>
+            </div>
+
+            {description && (
+              <p className="full-width">{description}</p>
+            )}
+          </div>
+        )}
+
         <div className="form-actions full-width">
           <button
             type="submit"
-            disabled={isSubmitting || isAmountTooHigh || wallets.length === 0}
+            className={isTransferReady ? "submit-ready" : ""}
+            disabled={isSubmitting || !isTransferReady}
           >
+            {isSubmitting && <span className="button-spinner" aria-hidden="true"></span>}
             {isSubmitting ? "Transferring..." : "Transfer Funds"}
           </button>
         </div>

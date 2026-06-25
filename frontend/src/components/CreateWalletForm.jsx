@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createWallet } from "../services/api";
 
-function CreateWalletForm({ onWalletCreated }) {
+function CreateWalletForm({ onWalletCreated, onNotify }) {
   const [currency, setCurrency] = useState("EUR");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,7 +19,10 @@ function CreateWalletForm({ onWalletCreated }) {
       onWalletCreated(wallet);
       setCurrency("EUR");
     } catch (err) {
-      setError(err.message);
+      const message = err.message || "Could not create wallet.";
+
+      setError(message);
+      onNotify?.({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -45,6 +48,7 @@ function CreateWalletForm({ onWalletCreated }) {
 
         <div className="form-actions full-width">
           <button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <span className="button-spinner" aria-hidden="true"></span>}
             {isSubmitting ? "Creating..." : "Create Wallet"}
           </button>
         </div>

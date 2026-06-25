@@ -1,4 +1,9 @@
-function SummaryCards({ wallets = [], transactions = [], budgets = [] }) {
+function SummaryCards({
+  wallets = [],
+  transactions = [],
+  budgets = [],
+  isUpdating = false,
+}) {
   function formatCurrency(amount, currency = "EUR") {
     try {
       return new Intl.NumberFormat("en-CY", {
@@ -64,7 +69,7 @@ function SummaryCards({ wallets = [], transactions = [], budgets = [] }) {
   const remainingBudget = totalBudget - spendingInBudgetedCategories;
 
   return (
-    <div className="summary-grid">
+    <div className={isUpdating ? "summary-grid is-updating" : "summary-grid"}>
       <div className="summary-card wallet-summary-card">
         <div className="summary-icon blue">EUR</div>
         <h3>Total Wallet Balance</h3>

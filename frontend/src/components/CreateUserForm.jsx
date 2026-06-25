@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createUser } from "../services/api";
 
-function CreateUserForm({ onUserCreated }) {
+function CreateUserForm({ onUserCreated, onNotify }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -33,7 +33,10 @@ function CreateUserForm({ onUserCreated }) {
         onUserCreated();
       }
     } catch (err) {
-      setError(err.message);
+      const message = err.message || "Could not create your account.";
+
+      setError(message);
+      onNotify?.({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -81,6 +84,7 @@ function CreateUserForm({ onUserCreated }) {
 
         <div className="form-actions full-width">
           <button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <span className="button-spinner" aria-hidden="true"></span>}
             {isSubmitting ? "Creating..." : "Create User"}
           </button>
         </div>

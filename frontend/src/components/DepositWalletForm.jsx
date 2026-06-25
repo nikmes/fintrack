@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { depositToWallet } from "../services/api";
 
-function DepositWalletForm({ wallets, onDepositCompleted }) {
+function DepositWalletForm({ wallets, onDepositCompleted, onNotify }) {
   const [walletId, setWalletId] = useState("");
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
@@ -17,6 +17,11 @@ function DepositWalletForm({ wallets, onDepositCompleted }) {
       selectedWallet?.currentBalance ??
       0
   );
+  const amountNumber = Number(amount || 0);
+  const projectedBalance = selectedWalletBalance + amountNumber;
+  const hasAmount = amount.trim() !== "";
+  const isAmountInvalid = hasAmount && amountNumber <= 0;
+  const canSubmit = Boolean(effectiveWalletId) && amountNumber > 0;
 
   function formatCurrency(value, currency = "EUR") {
     return new Intl.NumberFormat("en-CY", {
@@ -47,10 +52,13 @@ function DepositWalletForm({ wallets, onDepositCompleted }) {
       setAmount("");
 
       if (onDepositCompleted) {
-        await onDepositCompleted();
+        await onDepositCompleted(effectiveWalletId);
       }
     } catch (err) {
-      setError(err.message);
+      const message = err.message || "Could not complete deposit.";
+
+      setError(message);
+      onNotify?.({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -114,10 +122,35 @@ function DepositWalletForm({ wallets, onDepositCompleted }) {
             onChange={(e) => setAmount(e.target.value)}
             required
           />
+
+          {isAmountInvalid && (
+            <small className="form-warning">
+              Amount must be greater than 0.
+            </small>
+          )}
         </div>
 
+        {selectedWallet && amountNumber > 0 && (
+          <div className="deposit-preview-card full-width">
+            <div>
+              <span>Deposit amount</span>
+              <strong>{formatCurrency(amountNumber, selectedWallet.currency)}</strong>
+            </div>
+
+            <div>
+              <span>Projected balance</span>
+              <strong>{formatCurrency(projectedBalance, selectedWallet.currency)}</strong>
+            </div>
+          </div>
+        )}
+
         <div className="form-actions full-width">
-          <button type="submit" disabled={isSubmitting}>
+          <button
+            type="submit"
+            className={canSubmit ? "submit-ready" : ""}
+            disabled={isSubmitting || !canSubmit}
+          >
+            {isSubmitting && <span className="button-spinner" aria-hidden="true"></span>}
             {isSubmitting ? "Depositing..." : "Deposit"}
           </button>
         </div>

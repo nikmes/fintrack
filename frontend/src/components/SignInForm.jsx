@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginUser } from "../services/api";
 
-function SignInForm({ onUserSignedIn }) {
+function SignInForm({ onUserSignedIn, onNotify }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -27,11 +27,13 @@ function SignInForm({ onUserSignedIn }) {
       setEmail("");
       setPassword("");
     } catch (err) {
-      if (err.status === 401) {
-        setError("Invalid email or password.");
-      } else {
-        setError(err.message || "Unable to sign in right now.");
-      }
+      const message =
+        err.status === 401
+          ? "Invalid email or password."
+          : err.message || "Unable to sign in right now.";
+
+      setError(message);
+      onNotify?.({ type: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -69,6 +71,7 @@ function SignInForm({ onUserSignedIn }) {
 
         <div className="form-actions full-width">
           <button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <span className="button-spinner" aria-hidden="true"></span>}
             {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getWalletTransactions } from "../services/api";
 
-function WalletActivityPanel({ wallets, refreshKey = 0 }) {
+function WalletActivityPanel({ wallets, refreshKey = 0, onNotify }) {
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState("");
@@ -28,12 +28,15 @@ function WalletActivityPanel({ wallets, refreshKey = 0 }) {
         const data = await getWalletTransactions(walletId);
         setTransactions(data || []);
       } catch (err) {
-        setError(err.message);
+        const message = err.message || "Could not load wallet activity.";
+
+        setError(message);
+        onNotify?.({ type: "error", message });
       } finally {
         setIsLoading(false);
       }
     },
-    [activeWalletId]
+    [activeWalletId, onNotify]
   );
 
   useEffect(() => {
@@ -111,7 +114,7 @@ function WalletActivityPanel({ wallets, refreshKey = 0 }) {
   return (
     <div className="card dashboard-card wallet-activity-card">
       {wallets.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state" data-empty-label="+">
           <h3>No wallets available</h3>
           <p>Create a wallet first to view wallet activity.</p>
         </div>
@@ -138,26 +141,46 @@ function WalletActivityPanel({ wallets, refreshKey = 0 }) {
               onClick={() => loadWalletTransactions()}
               disabled={!activeWalletId || isLoading}
             >
+              {isLoading && <span className="button-spinner" aria-hidden="true"></span>}
               {isLoading ? "Loading..." : "Refresh"}
             </button>
           </div>
 
           {error && <p className="error">{error}</p>}
 
-          {transactions.length === 0 ? (
-            <div className="empty-state">
+          {isLoading && transactions.length === 0 ? (
+            <div className="data-list activity-skeleton-list" aria-hidden="true">
+              {[1, 2, 3].map((item) => (
+                <div className="data-row transaction-row activity-row" key={item}>
+                  <div className="activity-skeleton-main">
+                    <span className="skeleton skeleton-icon"></span>
+                    <div>
+                      <span className="skeleton skeleton-line short"></span>
+                      <span className="skeleton skeleton-line"></span>
+                    </div>
+                  </div>
+                  <span className="skeleton skeleton-pill"></span>
+                </div>
+              ))}
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="empty-state" data-empty-label="0">
               <h3>No wallet activity yet</h3>
-              <p>Deposits and transfers will appear here.</p>
+              <p>Deposits and transfers will appear here as soon as money moves.</p>
             </div>
           ) : (
             <div className="data-list">
-              {transactions.map((transaction) => {
+              {transactions.map((transaction, index) => {
                 const effect = getWalletEffect(transaction);
                 const isCredit = effect.sign === "+";
                 const amountClass = isCredit ? "credit" : "debit";
 
                 return (
-                  <div className="data-row transaction-row" key={transaction.id}>
+                  <div
+                    className={`data-row transaction-row activity-row ${amountClass}`}
+                    key={transaction.id}
+                    style={{ "--row-index": index }}
+                  >
                     <div>
                       <div className="row-title">
                         <span className={`activity-icon ${amountClass}`}>

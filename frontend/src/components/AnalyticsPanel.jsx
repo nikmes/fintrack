@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -17,15 +17,7 @@ function AnalyticsPanel({ userId, transactions }) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (!userId) {
-      return;
-    }
-
-    loadAnalytics();
-  }, [userId, transactions.length]);
-
-  async function loadAnalytics() {
+  const loadAnalytics = useCallback(async () => {
     setError("");
     setIsLoading(true);
 
@@ -42,7 +34,19 @@ function AnalyticsPanel({ userId, transactions }) {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      loadAnalytics();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadAnalytics, transactions.length, userId]);
 
   function formatCurrency(amount) {
     return new Intl.NumberFormat("en-CY", {
@@ -59,12 +63,13 @@ function AnalyticsPanel({ userId, transactions }) {
   return (
     <div className="card analytics-card">
       <div className="analytics-header">
-  <p>Automatically updated from your transactions</p>
+        <p>Automatically updated from your transactions</p>
 
-  <button type="button" onClick={loadAnalytics}>
-    {isLoading ? "Loading..." : "Refresh"}
-  </button>
-</div>
+        <button type="button" onClick={loadAnalytics} disabled={isLoading}>
+          {isLoading && <span className="button-spinner" aria-hidden="true"></span>}
+          {isLoading ? "Loading..." : "Refresh"}
+        </button>
+      </div>
 
       {error && <p className="error">{error}</p>}
 
@@ -97,7 +102,7 @@ function AnalyticsPanel({ userId, transactions }) {
                   tick={{ fontSize: 14 }}
                   interval={0}
                 />
-                <YAxis tickFormatter={(value) => `€${value}`} />
+                <YAxis tickFormatter={(value) => `EUR ${value}`} />
                 <Tooltip formatter={(value) => [formatCurrency(value), "Total"]} />
 
                 <Bar dataKey="total" radius={[10, 10, 0, 0]} maxBarSize={95}>
